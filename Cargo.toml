@@ -1,0 +1,20 @@
+[package]
+name = "cowtui"
+version = "0.1.0"
+edition = "2021"
+description = "A cow-themed terminal system monitor with a C /proc backend and a ratatui frontend"
+build = "build.rs"
+
+[[bin]]
+name = "cowtui"
+path = "src/main.rs"
+
+[dependencies]
+ratatui = "0.30"
+
+[build-dependencies]
+cc = "1"
+
+[profile.release]
+opt-level = 3
+lto = true

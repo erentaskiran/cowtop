@@ -17,6 +17,11 @@ typedef struct {
     unsigned long long free_kb;
     unsigned long long available_kb;
     unsigned long long used_kb;
+    unsigned long long buffers_kb;
+    unsigned long long cached_kb;
+    unsigned long long swap_total_kb;
+    unsigned long long swap_free_kb;
+    unsigned long long swap_used_kb;
 } ProcMemInfo;
 
 typedef struct {

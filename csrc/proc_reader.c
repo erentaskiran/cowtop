@@ -203,6 +203,8 @@ static int read_mem_info(const char *proc_root,
     unsigned long long cached_kb = 0;
     unsigned long long sreclaimable_kb = 0;
     unsigned long long shmem_kb = 0;
+    unsigned long long swap_total_kb = 0;
+    unsigned long long swap_free_kb = 0;
     FILE *file;
 
     if (!build_path(path, sizeof(path), proc_root, "meminfo")) {
@@ -239,6 +241,10 @@ static int read_mem_info(const char *proc_root,
             sreclaimable_kb = value;
         } else if (strcmp(key, "Shmem") == 0) {
             shmem_kb = value;
+        } else if (strcmp(key, "SwapTotal") == 0) {
+            swap_total_kb = value;
+        } else if (strcmp(key, "SwapFree") == 0) {
+            swap_free_kb = value;
         }
     }
 
@@ -266,6 +272,12 @@ static int read_mem_info(const char *proc_root,
         mem->available_kb = mem->total_kb;
     }
     mem->used_kb = mem->total_kb - mem->available_kb;
+
+    mem->buffers_kb = buffers_kb;
+    mem->cached_kb = cached_kb + sreclaimable_kb;
+    mem->swap_total_kb = swap_total_kb;
+    mem->swap_free_kb = swap_free_kb;
+    mem->swap_used_kb = swap_total_kb > swap_free_kb ? swap_total_kb - swap_free_kb : 0;
 
     return 0;
 }
