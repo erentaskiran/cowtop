@@ -230,6 +230,67 @@ int cow_monitor_sample(CowMonitor *monitor,
 
     out->timestamp = (long long)time(NULL);
 
+    /* Hostname from /proc/sys/kernel/hostname */
+    {
+        char hpath[COWTOP_PATH_MAX];
+        FILE *hf;
+        snprintf(hpath, sizeof(hpath), "%s/sys/kernel/hostname", monitor->proc_root);
+        hf = fopen(hpath, "r");
+        if (hf != NULL) {
+            char buf[COW_HOSTNAME_LEN];
+            if (fgets(buf, sizeof(buf), hf) != NULL) {
+                size_t hlen = strlen(buf);
+                while (hlen > 0 && (buf[hlen - 1] == '\n' || buf[hlen - 1] == '\r'))
+                    buf[--hlen] = '\0';
+                snprintf(out->hostname, sizeof(out->hostname), "%s", buf);
+            }
+            fclose(hf);
+        }
+    }
+
+    /* Kernel version from /proc/version (trim after first '(') */
+    {
+        char kpath[COWTOP_PATH_MAX];
+        FILE *kf;
+        snprintf(kpath, sizeof(kpath), "%s/version", monitor->proc_root);
+        kf = fopen(kpath, "r");
+        if (kf != NULL) {
+            char buf[COW_KERNEL_LEN];
+            if (fgets(buf, sizeof(buf), kf) != NULL) {
+                char *paren = strchr(buf, '(');
+                size_t klen;
+                if (paren != NULL) *paren = '\0';
+                klen = strlen(buf);
+                while (klen > 0 && (buf[klen - 1] == ' ' || buf[klen - 1] == '\n'))
+                    buf[--klen] = '\0';
+                snprintf(out->kernel, sizeof(out->kernel), "%s", buf);
+            }
+            fclose(kf);
+        }
+    }
+
+    /* Context switches + total interrupts from /proc/stat */
+    {
+        char spath[COWTOP_PATH_MAX];
+        FILE *sf;
+        char sline[256];
+        snprintf(spath, sizeof(spath), "%s/stat", monitor->proc_root);
+        sf = fopen(spath, "r");
+        if (sf != NULL) {
+            while (fgets(sline, sizeof(sline), sf) != NULL) {
+                unsigned long long val;
+                if (strncmp(sline, "ctxt ", 5) == 0) {
+                    if (sscanf(sline + 5, "%llu", &val) == 1)
+                        out->ctx_switches = val;
+                } else if (strncmp(sline, "intr ", 5) == 0) {
+                    if (sscanf(sline + 5, "%llu", &val) == 1)
+                        out->interrupts = val;
+                }
+            }
+            fclose(sf);
+        }
+    }
+
     /* Memory. */
     out->mem.total_kb = current.mem.total_kb;
     out->mem.used_kb = current.mem.used_kb;

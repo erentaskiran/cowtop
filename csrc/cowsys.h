@@ -18,6 +18,8 @@
 #define COW_ADDR 48
 #define COW_STATE 16
 #define COW_PROTO 8
+#define COW_HOSTNAME_LEN 64
+#define COW_KERNEL_LEN 256
 
 #define COW_ERR_LEN 256
 
@@ -110,6 +112,11 @@ typedef struct {
 
     unsigned int proc_total;
     unsigned int proc_skipped;
+
+    char hostname[COW_HOSTNAME_LEN];
+    char kernel[COW_KERNEL_LEN];
+    unsigned long long ctx_switches;
+    unsigned long long interrupts;
 } CowSample;
 
 typedef struct CowMonitor CowMonitor;

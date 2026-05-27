@@ -116,6 +116,10 @@ pub struct Snapshot {
     pub top_cpu: Vec<Proc>,
     pub top_mem: Vec<Proc>,
     pub proc_total: u32,
+    pub hostname: String,
+    pub kernel: String,
+    pub ctx_switches: u64,
+    pub interrupts: u64,
 }
 
 pub struct Monitor {
@@ -254,5 +258,9 @@ fn convert(s: &ffi::CowSample) -> Snapshot {
         top_cpu: map_procs(&s.top_cpu, s.top_cpu_count),
         top_mem: map_procs(&s.top_mem, s.top_mem_count),
         proc_total: s.proc_total,
+        hostname: c_str(&s.hostname),
+        kernel: c_str(&s.kernel),
+        ctx_switches: s.ctx_switches,
+        interrupts: s.interrupts,
     }
 }

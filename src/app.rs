@@ -78,6 +78,9 @@ pub struct App {
     pub tx_hist: Series,
     pub disk_r_hist: Series,
     pub disk_w_hist: Series,
+
+    pub ctx_rate: u64,
+    pub intr_rate: u64,
 }
 
 impl App {
@@ -96,6 +99,8 @@ impl App {
             tx_hist: Series::new(),
             disk_r_hist: Series::new(),
             disk_w_hist: Series::new(),
+            ctx_rate: 0,
+            intr_rate: 0,
         }
     }
 
@@ -105,6 +110,8 @@ impl App {
         }
         match self.monitor.sample(self.top_count) {
             Ok(s) => {
+                self.ctx_rate = s.ctx_switches.saturating_sub(self.snapshot.ctx_switches);
+                self.intr_rate = s.interrupts.saturating_sub(self.snapshot.interrupts);
                 self.cpu_hist.push(s.cpu.total_percent.round() as u64);
                 self.mem_hist.push(s.mem.used_percent().round() as u64);
                 self.rx_hist.push((s.net.total_rx_bps / 1024.0).round() as u64);

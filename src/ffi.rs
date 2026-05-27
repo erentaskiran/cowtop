@@ -15,6 +15,8 @@ pub const COW_PATH: usize = 128;
 pub const COW_ADDR: usize = 48;
 pub const COW_STATE: usize = 16;
 pub const COW_PROTO: usize = 8;
+pub const COW_HOSTNAME_LEN: usize = 64;
+pub const COW_KERNEL_LEN: usize = 256;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -115,6 +117,11 @@ pub struct CowSample {
     pub top_mem_count: c_int,
     pub proc_total: u32,
     pub proc_skipped: u32,
+
+    pub hostname: [c_char; COW_HOSTNAME_LEN],
+    pub kernel: [c_char; COW_KERNEL_LEN],
+    pub ctx_switches: u64,
+    pub interrupts: u64,
 }
 
 #[repr(C)]
