@@ -2,14 +2,9 @@ use std::time::{Duration, Instant};
 
 use ratatui::crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers, MouseEventKind};
 
-mod app;
-mod cow;
-mod ffi;
-mod sys;
-mod ui;
-
-use crate::app::App;
-use crate::sys::{Monitor, Signal};
+use cowtop::{ffi, ui};
+use cowtop::app::App;
+use cowtop::sys::{Monitor, Signal};
 
 struct Args {
     proc_root: Option<String>,

@@ -1,12 +1,13 @@
 use ratatui::{
     layout::{Constraint, Layout, Rect},
-    style::Style,
+    style::{Modifier, Style},
     text::{Line, Span},
-    widgets::Gauge,
+    widgets::{Gauge, Paragraph},
     Frame,
 };
 
 use crate::app::App;
+use crate::cow::Mood;
 use super::widgets::*;
 
 pub fn render(frame: &mut Frame, area: Rect, app: &App) {
@@ -18,6 +19,15 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
     let cores = &app.snapshot.cpu.cores;
     if cores.is_empty() {
         return;
+    }
+
+    // Reserve the bottom of the tab for the grazing herd when there is room
+    // (each core gets a cow). Falls back to all-gauges on short terminals.
+    let herd_h = if inner.height >= 13 { 5 } else { 0 };
+    let split = Layout::vertical([Constraint::Min(3), Constraint::Length(herd_h)]).split(inner);
+    let inner = split[0];
+    if herd_h > 0 {
+        render_herd(frame, split[1], app);
     }
 
     let head = Layout::vertical([Constraint::Length(2), Constraint::Min(1)]).split(inner);
@@ -88,6 +98,57 @@ fn render_cores(frame: &mut Frame, area: Rect, app: &App) {
                     .label(format!("c{:<2} {:>3.0}%", core_idx, v))
                     .gauge_style(Style::default().fg(color).bg(t.gauge_cpu_bg)),
                 cells[i],
+            );
+        }
+    }
+}
+
+/// The herd: one little cow per core, grazing or panicking with its load.
+/// Cores that don't fit on one row are summarised as a "+N grazing" tail.
+fn render_herd(frame: &mut Frame, area: Rect, app: &App) {
+    let t = &app.theme;
+    let block = t.pasture_block("The Herd");
+    let inner = block.inner(area);
+    frame.render_widget(block, area);
+    if inner.height < 3 {
+        return;
+    }
+
+    let cores = &app.snapshot.cpu.cores;
+    let cell_w: u16 = 6;
+    let capacity = (inner.width / cell_w).max(1) as usize;
+    let shown = cores.len().min(capacity);
+    if shown == 0 {
+        return;
+    }
+
+    let mut constraints: Vec<Constraint> = (0..shown).map(|_| Constraint::Length(cell_w)).collect();
+    constraints.push(Constraint::Min(0));
+    let cols = Layout::horizontal(constraints).split(inner);
+
+    for (i, &load) in cores.iter().take(shown).enumerate() {
+        let color = t.gauge_color(load);
+        let cow = Mood::herd_cow(load);
+        let para = Paragraph::new(vec![
+            Line::from(Span::styled(cow[0], Style::default().fg(color))),
+            Line::from(Span::styled(cow[1], Style::default().fg(color).add_modifier(Modifier::BOLD))),
+            Line::from(Span::styled(format!("c{:<2}", i), Style::default().fg(t.dim))),
+        ]);
+        frame.render_widget(para, cols[i]);
+    }
+
+    // Tail cell: note any cows still out in the back field.
+    if let Some(tail) = cols.get(shown) {
+        if cores.len() > shown {
+            frame.render_widget(
+                Paragraph::new(vec![
+                    Line::from(""),
+                    Line::from(Span::styled(
+                        format!("+{} more", cores.len() - shown),
+                        Style::default().fg(t.dim).add_modifier(Modifier::ITALIC),
+                    )),
+                ]),
+                *tail,
             );
         }
     }

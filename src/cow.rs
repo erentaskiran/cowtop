@@ -63,6 +63,23 @@ impl Mood {
         }
     }
 
+    /// A tiny two-line cow for the CPU "herd" view — one head per core.
+    /// The eyes track that single core's load: head-down grazing when idle,
+    /// wide-eyed when busy, X'd out when pinned.
+    pub fn herd_cow(load: f64) -> [&'static str; 2] {
+        if load >= 90.0 {
+            ["^__^", "(xx)"] // pinned — eyes rolled back
+        } else if load >= 75.0 {
+            ["^__^", "(Oo)"] // stressed — bug-eyed
+        } else if load >= 50.0 {
+            ["^__^", "(oo)"] // busy — alert
+        } else if load >= 25.0 {
+            ["^__^", "(··)"] // content — half-lidded
+        } else {
+            ["    ", "(__)"] // grazing — head down in the grass
+        }
+    }
+
     /// Five lines of cow art. The eyes and sweat change with mood.
     /// `frame` picks an idle animation variant.
     pub fn art(self, frame: u64) -> [&'static str; 5] {
