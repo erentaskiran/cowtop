@@ -15,5 +15,10 @@ fn main() {
         .warnings(true)
         .compile("cowsys");
 
+    // Explicitly link the C static library - some cc crate / Cargo combinations
+    // need the directive emitted from build.rs proper rather than via cc internals.
+    println!("cargo:rustc-link-lib=static=cowsys");
+    println!("cargo:rustc-link-search=native={}", std::env::var("OUT_DIR").unwrap());
+
     println!("cargo:rerun-if-changed=csrc");
 }

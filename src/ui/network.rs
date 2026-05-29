@@ -6,9 +6,7 @@ use ratatui::{
     Frame,
 };
 
-
 use crate::app::App;
-use super::theme::*;
 use super::widgets::*;
 
 pub fn render(frame: &mut Frame, area: Rect, app: &App) {
@@ -21,12 +19,13 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
 }
 
 fn render_ifaces(frame: &mut Frame, area: Rect, app: &App) {
-    let block = net_block("Interfaces");
+    let t = &app.theme;
+    let block = t.net_block("Interfaces");
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
-    let header = Row::new(vec!["IFACE", "▼ RX/s", "▲ TX/s", "TOTAL"])
-        .style(Style::default().fg(DAISY).add_modifier(Modifier::BOLD));
+    let header = Row::new(vec!["IFACE", "v RX/s", "^ TX/s", "TOTAL"])
+        .style(Style::default().fg(t.daisy).add_modifier(Modifier::BOLD));
 
     let irows = app.snapshot.net.ifaces.iter()
         .take(inner.height.saturating_sub(1) as usize)
@@ -37,7 +36,7 @@ fn render_ifaces(frame: &mut Frame, area: Rect, app: &App) {
                 fmt_bps(i.tx_bps),
                 fmt_kb((i.rx_bytes + i.tx_bytes) / 1024),
             ])
-            .style(Style::default().fg(CREAM))
+            .style(Style::default().fg(t.cream))
         });
 
     frame.render_widget(
@@ -56,7 +55,8 @@ fn render_ifaces(frame: &mut Frame, area: Rect, app: &App) {
 }
 
 fn render_pulse(frame: &mut Frame, area: Rect, app: &App) {
-    let block = net_block("Throughput");
+    let t = &app.theme;
+    let block = t.net_block("Throughput");
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
@@ -70,15 +70,15 @@ fn render_pulse(frame: &mut Frame, area: Rect, app: &App) {
 
     frame.render_widget(
         Paragraph::new(Span::styled(
-            format!("▼ rx  {}", fmt_bps(app.snapshot.net.total_rx_bps)),
-            Style::default().fg(MEADOW).add_modifier(Modifier::BOLD),
+            format!("v rx  {}", fmt_bps(app.snapshot.net.total_rx_bps)),
+            Style::default().fg(t.meadow).add_modifier(Modifier::BOLD),
         )),
         sp[0],
     );
-    frame.render_widget(sparkline(&app.rx_hist, MEADOW, None), sp[1]);
+    frame.render_widget(sparkline(&app.rx_hist, t.meadow, None), sp[1]);
     frame.render_widget(
         Paragraph::new(Span::styled(
-            format!("▲ tx  {}", fmt_bps(app.snapshot.net.total_tx_bps)),
+            format!("^ tx  {}", fmt_bps(app.snapshot.net.total_tx_bps)),
             Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
         )),
         sp[2],
@@ -87,18 +87,19 @@ fn render_pulse(frame: &mut Frame, area: Rect, app: &App) {
 }
 
 fn render_conns(frame: &mut Frame, area: Rect, app: &App) {
+    let t = &app.theme;
     let net = &app.snapshot.net;
     let title = format!(
-        "Sockets  tcp {} estab · {} listen · {} tw  ·  udp {}  ·  {} traced",
+        "Sockets  tcp {} estab . {} listen . {} tw  .  udp {}  .  {} traced",
         net.tcp_estab, net.tcp_listen, net.tcp_time_wait, net.udp_count,
         app.snapshot.conns.len()
     );
-    let block = net_block(&title);
+    let block = t.net_block(&title);
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
     let header = Row::new(vec!["PROTO", "LOCAL", "REMOTE", "STATE", "UID"])
-        .style(Style::default().fg(DAISY).add_modifier(Modifier::BOLD));
+        .style(Style::default().fg(t.daisy).add_modifier(Modifier::BOLD));
 
     let visible = inner.height.saturating_sub(1) as usize;
     let crows = app.snapshot.conns.iter()
@@ -112,7 +113,7 @@ fn render_conns(frame: &mut Frame, area: Rect, app: &App) {
                 c.state.clone(),
                 c.uid.to_string(),
             ])
-            .style(Style::default().fg(conn_color(&c.state)))
+            .style(Style::default().fg(t.conn_color(&c.state)))
         });
 
     frame.render_widget(
@@ -130,4 +131,3 @@ fn render_conns(frame: &mut Frame, area: Rect, app: &App) {
         inner,
     );
 }
-

@@ -296,6 +296,9 @@ static int parse_stat_line(const char *line, ProcProcessSample *process)
     int have_stime = 0;
     int field = 3;
     size_t name_len;
+    char state_char = '?';
+    int ppid_val = 0;
+    int threads_val = 1;
 
     if (left == NULL || right == NULL || right <= left + 1) {
         return -1;
@@ -320,7 +323,11 @@ static int parse_stat_line(const char *line, ProcProcessSample *process)
 
     token = strtok_r(rest, " \t\r\n", &saveptr);
     while (token != NULL) {
-        if (field == 14) {
+        if (field == 3) {
+            state_char = token[0];
+        } else if (field == 4) {
+            ppid_val = atoi(token);
+        } else if (field == 14) {
             if (parse_unsigned_long_long(token, &utime) != 0) {
                 return -1;
             }
@@ -330,6 +337,8 @@ static int parse_stat_line(const char *line, ProcProcessSample *process)
                 return -1;
             }
             have_stime = 1;
+        } else if (field == 20) {
+            threads_val = atoi(token);
             break;
         }
 
@@ -341,6 +350,9 @@ static int parse_stat_line(const char *line, ProcProcessSample *process)
         return -1;
     }
 
+    process->state = state_char;
+    process->ppid = ppid_val;
+    process->threads = threads_val;
     process->cpu_ticks = utime + stime;
     return 0;
 }
@@ -371,11 +383,14 @@ static int read_process_stat(const char *proc_root, int pid, ProcProcessSample *
     return parse_stat_line(line, process);
 }
 
-static int read_process_rss(const char *proc_root, int pid, unsigned long *rss_kb)
+static int read_process_status(const char *proc_root, int pid,
+                                unsigned long *rss_kb, int *uid)
 {
     char path[COWTOP_PATH_MAX];
     char line[512];
     FILE *file;
+    int found_rss = 0;
+    int found_uid = 0;
 
     if (!build_pid_path(path, sizeof(path), proc_root, pid, "status")) {
         return -1;
@@ -387,11 +402,20 @@ static int read_process_rss(const char *proc_root, int pid, unsigned long *rss_k
     }
 
     *rss_kb = 0;
+    *uid = 0;
     while (fgets(line, sizeof(line), file) != NULL) {
         unsigned long value = 0;
+        int id1, id2, id3, id4;
 
-        if (sscanf(line, "VmRSS: %lu", &value) == 1) {
+        if (!found_rss && sscanf(line, "VmRSS: %lu", &value) == 1) {
             *rss_kb = value;
+            found_rss = 1;
+        } else if (!found_uid && sscanf(line, "Uid: %d %d %d %d", &id1, &id2, &id3, &id4) == 4) {
+            *uid = id1;
+            found_uid = 1;
+        }
+
+        if (found_rss && found_uid) {
             break;
         }
     }
@@ -433,7 +457,7 @@ static int read_processes(const char *proc_root,
         }
 
         if (read_process_stat(proc_root, pid, &process) != 0 ||
-            read_process_rss(proc_root, pid, &process.rss_kb) != 0) {
+            read_process_status(proc_root, pid, &process.rss_kb, &process.uid) != 0) {
             sample->skipped_processes++;
             continue;
         }
@@ -627,6 +651,10 @@ int proc_build_snapshot(const ProcSample *previous,
         ProcProcessView *view = &views[i];
 
         view->pid = process->pid;
+        view->ppid = process->ppid;
+        view->state = process->state;
+        view->threads = process->threads;
+        view->uid = process->uid;
         strncpy(view->name, process->name, sizeof(view->name) - 1);
         view->name[sizeof(view->name) - 1] = '\0';
         view->rss_kb = process->rss_kb;

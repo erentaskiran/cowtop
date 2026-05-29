@@ -99,9 +99,25 @@ pub struct Mount {
 #[derive(Clone)]
 pub struct Proc {
     pub pid: i32,
+    pub ppid: i32,
     pub name: String,
+    pub state: char,
+    pub threads: i32,
+    pub uid: i32,
     pub cpu_percent: f64,
     pub rss_kb: u64,
+}
+
+#[derive(Clone)]
+pub struct CpuFreq {
+    pub core_id: i32,
+    pub freq_mhz: f64,
+}
+
+#[derive(Clone)]
+pub struct Thermal {
+    pub name: String,
+    pub temp_c: f64,
 }
 
 #[derive(Clone, Default)]
@@ -120,13 +136,38 @@ pub struct Snapshot {
     pub kernel: String,
     pub ctx_switches: u64,
     pub interrupts: u64,
+    pub cpu_freqs: Vec<CpuFreq>,
+    pub thermals: Vec<Thermal>,
 }
 
 pub struct Monitor {
     handle: *mut ffi::CowMonitor,
 }
 
+#[derive(Clone, Copy)]
+pub enum Signal {
+    Term,
+    Kill,
+    Int,
+    Hup,
+}
+
 impl Monitor {
+    pub fn kill_process(pid: i32, sig: Signal) -> Result<(), String> {
+        let sig_no = match sig {
+            Signal::Term => libc::SIGTERM,
+            Signal::Kill => libc::SIGKILL,
+            Signal::Int => libc::SIGINT,
+            Signal::Hup => libc::SIGHUP,
+        };
+        let rc = unsafe { libc::kill(pid, sig_no) };
+        if rc != 0 {
+            Err(std::io::Error::last_os_error().to_string())
+        } else {
+            Ok(())
+        }
+    }
+
     pub fn new(proc_root: Option<&str>) -> Result<Self, String> {
         let c_root = match proc_root {
             Some(p) => Some(CString::new(p).map_err(|_| "invalid proc root".to_string())?),
@@ -216,12 +257,32 @@ fn convert(s: &ffi::CowSample) -> Snapshot {
             .iter()
             .map(|p| Proc {
                 pid: p.pid,
+                ppid: p.ppid,
                 name: c_str(&p.name),
+                state: (p.state as u8) as char,
+                threads: p.threads,
+                uid: p.uid,
                 cpu_percent: p.cpu_percent,
                 rss_kb: p.rss_kb,
             })
             .collect()
     };
+
+    let cpu_freqs = s.cpu_freqs[..(s.cpu_freq_count.max(0) as usize).min(ffi::COW_MAX_CORES)]
+        .iter()
+        .map(|f| CpuFreq {
+            core_id: f.core_id,
+            freq_mhz: f.freq_mhz,
+        })
+        .collect();
+
+    let thermals = s.thermals[..(s.thermal_count.max(0) as usize).min(ffi::COW_MAX_THERMAL)]
+        .iter()
+        .map(|t| Thermal {
+            name: c_str(&t.name),
+            temp_c: t.temp_c,
+        })
+        .collect();
 
     Snapshot {
         cpu: Cpu {
@@ -262,5 +323,7 @@ fn convert(s: &ffi::CowSample) -> Snapshot {
         kernel: c_str(&s.kernel),
         ctx_switches: s.ctx_switches,
         interrupts: s.interrupts,
+        cpu_freqs,
+        thermals,
     }
 }

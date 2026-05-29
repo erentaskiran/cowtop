@@ -7,12 +7,11 @@ use ratatui::{
 };
 
 use crate::app::App;
-use super::theme::*;
 use super::widgets::*;
 
 pub fn render(frame: &mut Frame, area: Rect, app: &App) {
     let chunks = Layout::vertical([
-        Constraint::Length(1),   // sistem bilgi çubuğu
+        Constraint::Length(1),
         Constraint::Ratio(1, 3),
         Constraint::Ratio(1, 3),
         Constraint::Ratio(1, 3),
@@ -34,37 +33,36 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
 }
 
 fn render_sys_bar(frame: &mut Frame, area: Rect, app: &App) {
+    let t = &app.theme;
     let s = &app.snapshot;
     let line = Line::from(vec![
         Span::raw("  "),
         Span::styled(
             if s.hostname.is_empty() { "localhost".to_string() } else { s.hostname.clone() },
-            Style::default().fg(DAISY).add_modifier(Modifier::BOLD),
+            Style::default().fg(t.daisy).add_modifier(Modifier::BOLD),
         ),
-        Span::styled("  │  ", Style::default().fg(Color::Rgb(60, 90, 55))),
-        Span::styled(
-            truncate(&s.kernel, 40),
-            Style::default().fg(SKY),
-        ),
-        Span::styled("  │  ", Style::default().fg(Color::Rgb(60, 90, 55))),
-        Span::styled("up ", Style::default().fg(DIM)),
-        Span::styled(fmt_uptime(s.cpu.uptime_seconds), Style::default().fg(CREAM)),
-        Span::styled("  │  ", Style::default().fg(Color::Rgb(60, 90, 55))),
-        Span::styled(format!("{} procs", s.proc_total), Style::default().fg(MEADOW)),
-        Span::styled("  │  ", Style::default().fg(Color::Rgb(60, 90, 55))),
-        Span::styled("ctx/s ", Style::default().fg(DIM)),
+        Span::styled("  | ", Style::default().fg(Color::Rgb(60, 90, 55))),
+        Span::styled(truncate(&s.kernel, 40), Style::default().fg(t.sky)),
+        Span::styled("  | ", Style::default().fg(Color::Rgb(60, 90, 55))),
+        Span::styled("up ", Style::default().fg(t.dim)),
+        Span::styled(fmt_uptime(s.cpu.uptime_seconds), Style::default().fg(t.cream)),
+        Span::styled("  | ", Style::default().fg(Color::Rgb(60, 90, 55))),
+        Span::styled(format!("{} procs", s.proc_total), Style::default().fg(t.meadow)),
+        Span::styled("  | ", Style::default().fg(Color::Rgb(60, 90, 55))),
+        Span::styled("ctx/s ", Style::default().fg(t.dim)),
         Span::styled(fmt_rate(app.ctx_rate), Style::default().fg(Color::Yellow)),
-        Span::styled("  intr/s ", Style::default().fg(DIM)),
+        Span::styled("  intr/s ", Style::default().fg(t.dim)),
         Span::styled(fmt_rate(app.intr_rate), Style::default().fg(Color::Yellow)),
     ]);
     frame.render_widget(
-        Paragraph::new(line).style(Style::default().bg(SPOT).fg(MILK)),
+        Paragraph::new(line).style(Style::default().bg(t.spot).fg(t.milk)),
         area,
     );
 }
 
 fn panel_cpu(frame: &mut Frame, area: Rect, app: &App) {
-    let block = cpu_block("CPU");
+    let t = &app.theme;
+    let block = t.cpu_block("CPU");
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
@@ -75,19 +73,17 @@ fn panel_cpu(frame: &mut Frame, area: Rect, app: &App) {
             .ratio((cpu / 100.0).clamp(0.0, 1.0))
             .label(format!(
                 "{:.1}%  load {:.2} {:.2} {:.2}",
-                cpu,
-                app.snapshot.cpu.load1,
-                app.snapshot.cpu.load5,
-                app.snapshot.cpu.load15
+                cpu, app.snapshot.cpu.load1, app.snapshot.cpu.load5, app.snapshot.cpu.load15
             ))
-            .gauge_style(Style::default().fg(gauge_color(cpu)).bg(Color::Rgb(28, 38, 25))),
+            .gauge_style(Style::default().fg(t.gauge_color(cpu)).bg(t.gauge_cpu_bg)),
         parts[0],
     );
-    frame.render_widget(sparkline(&app.cpu_hist, MEADOW, Some(100)), parts[1]);
+    frame.render_widget(sparkline(&app.cpu_hist, t.meadow, Some(100)), parts[1]);
 }
 
 fn panel_mem(frame: &mut Frame, area: Rect, app: &App) {
-    let block = mem_block("Memory");
+    let t = &app.theme;
+    let block = t.mem_block("Memory");
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
@@ -105,7 +101,7 @@ fn panel_mem(frame: &mut Frame, area: Rect, app: &App) {
         Gauge::default()
             .ratio((used / 100.0).clamp(0.0, 1.0))
             .label(format!("RAM {}/{}", fmt_kb(mem.used_kb), fmt_kb(mem.total_kb)))
-            .gauge_style(Style::default().fg(gauge_color(used)).bg(Color::Rgb(25, 35, 45))),
+            .gauge_style(Style::default().fg(t.gauge_color(used)).bg(t.gauge_mem_bg)),
         parts[0],
     );
     let swap = mem.swap_percent();
@@ -117,25 +113,26 @@ fn panel_mem(frame: &mut Frame, area: Rect, app: &App) {
             } else {
                 format!("swap {}/{}", fmt_kb(mem.swap_used_kb), fmt_kb(mem.swap_total_kb))
             })
-            .gauge_style(Style::default().fg(Color::Rgb(80, 160, 210)).bg(Color::Rgb(25, 35, 45))),
+            .gauge_style(Style::default().fg(Color::Rgb(80, 160, 210)).bg(t.gauge_mem_bg)),
         parts[1],
     );
     frame.render_widget(
         Paragraph::new(Line::from(vec![
-            Span::styled("avail ", Style::default().fg(DIM)),
-            Span::styled(fmt_kb(mem.available_kb), Style::default().fg(MILK)),
-            Span::styled("  cache ", Style::default().fg(DIM)),
-            Span::styled(fmt_kb(mem.cached_kb), Style::default().fg(MILK)),
-            Span::styled("  buf ", Style::default().fg(DIM)),
-            Span::styled(fmt_kb(mem.buffers_kb), Style::default().fg(MILK)),
+            Span::styled("avail ", Style::default().fg(t.dim)),
+            Span::styled(fmt_kb(mem.available_kb), Style::default().fg(t.milk)),
+            Span::styled("  cache ", Style::default().fg(t.dim)),
+            Span::styled(fmt_kb(mem.cached_kb), Style::default().fg(t.milk)),
+            Span::styled("  buf ", Style::default().fg(t.dim)),
+            Span::styled(fmt_kb(mem.buffers_kb), Style::default().fg(t.milk)),
         ])),
         parts[2],
     );
-    frame.render_widget(sparkline(&app.mem_hist, SKY, Some(100)), parts[3]);
+    frame.render_widget(sparkline(&app.mem_hist, t.sky, Some(100)), parts[3]);
 }
 
 fn panel_net(frame: &mut Frame, area: Rect, app: &App) {
-    let block = net_block("Network");
+    let t = &app.theme;
+    let block = t.net_block("Network");
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
@@ -150,29 +147,20 @@ fn panel_net(frame: &mut Frame, area: Rect, app: &App) {
 
     frame.render_widget(
         Paragraph::new(Line::from(vec![
-            Span::styled("▼ rx ", Style::default().fg(DIM)),
+            Span::styled("v rx ", Style::default().fg(t.dim)),
+            Span::styled(fmt_bps(net.total_rx_bps), Style::default().fg(t.meadow).add_modifier(Modifier::BOLD)),
             Span::styled(
-                fmt_bps(net.total_rx_bps),
-                Style::default().fg(MEADOW).add_modifier(Modifier::BOLD),
-            ),
-            Span::styled(
-                format!(
-                    "  tcp:{} listen:{} tw:{} udp:{}",
-                    net.tcp_estab, net.tcp_listen, net.tcp_time_wait, net.udp_count
-                ),
-                Style::default().fg(DIM),
+                format!("  tcp:{} listen:{} tw:{} udp:{}", net.tcp_estab, net.tcp_listen, net.tcp_time_wait, net.udp_count),
+                Style::default().fg(t.dim),
             ),
         ])),
         parts[0],
     );
-    frame.render_widget(sparkline(&app.rx_hist, MEADOW, None), parts[1]);
+    frame.render_widget(sparkline(&app.rx_hist, t.meadow, None), parts[1]);
     frame.render_widget(
         Paragraph::new(Line::from(vec![
-            Span::styled("▲ tx ", Style::default().fg(DIM)),
-            Span::styled(
-                fmt_bps(net.total_tx_bps),
-                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
-            ),
+            Span::styled("^ tx ", Style::default().fg(t.dim)),
+            Span::styled(fmt_bps(net.total_tx_bps), Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
         ])),
         parts[2],
     );
@@ -180,7 +168,8 @@ fn panel_net(frame: &mut Frame, area: Rect, app: &App) {
 }
 
 fn panel_disk(frame: &mut Frame, area: Rect, app: &App) {
-    let block = disk_block("Storage");
+    let t = &app.theme;
+    let block = t.disk_block("Storage");
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
@@ -197,27 +186,19 @@ fn panel_disk(frame: &mut Frame, area: Rect, app: &App) {
                 .ratio((m.used_percent / 100.0).clamp(0.0, 1.0))
                 .label(format!(
                     "{} {:.0}% ({} free)",
-                    trim_mount(&m.mount),
-                    m.used_percent,
-                    fmt_kb(m.avail_kb)
+                    trim_mount(&m.mount), m.used_percent, fmt_kb(m.avail_kb)
                 ))
-                .gauge_style(Style::default().fg(gauge_color(m.used_percent)).bg(Color::Rgb(38, 28, 18))),
+                .gauge_style(Style::default().fg(t.gauge_color(m.used_percent)).bg(t.gauge_disk_bg)),
             parts[i],
         );
     }
     if let (Some(io_area), Some(_)) = (parts.get(n), parts.get(n + 1)) {
         frame.render_widget(
             Paragraph::new(Line::from(vec![
-                Span::styled("io  r ", Style::default().fg(DIM)),
-                Span::styled(
-                    fmt_bps(app.snapshot.disk_read_bps),
-                    Style::default().fg(Color::Yellow),
-                ),
-                Span::styled("  w ", Style::default().fg(DIM)),
-                Span::styled(
-                    fmt_bps(app.snapshot.disk_write_bps),
-                    Style::default().fg(Color::Magenta),
-                ),
+                Span::styled("io  r ", Style::default().fg(t.dim)),
+                Span::styled(fmt_bps(app.snapshot.disk_read_bps), Style::default().fg(Color::Yellow)),
+                Span::styled("  w ", Style::default().fg(t.dim)),
+                Span::styled(fmt_bps(app.snapshot.disk_write_bps), Style::default().fg(Color::Magenta)),
             ])),
             *io_area,
         );
@@ -225,26 +206,39 @@ fn panel_disk(frame: &mut Frame, area: Rect, app: &App) {
 }
 
 fn panel_top_cpu(frame: &mut Frame, area: Rect, app: &App) {
-    let block = proc_block("Top by CPU");
+    let t = &app.theme;
+    let block = t.proc_block("Top by CPU");
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
-    let header = Row::new(vec!["  PID", "CPU%", "   RSS", "COMMAND"])
-        .style(Style::default().fg(DAISY).add_modifier(Modifier::BOLD));
+    let sort_hint = match app.proc_sort {
+        crate::app::ProcessSort::Cpu => " [CPU▼]",
+        crate::app::ProcessSort::Mem => " [MEM]",
+        crate::app::ProcessSort::Pid => " [PID]",
+        crate::app::ProcessSort::Name => " [NAME]",
+    };
 
-    let visible = inner.height.saturating_sub(1) as usize;
-    let rows = app.snapshot.top_cpu.iter().take(visible).map(|p| {
+    let header = Row::new(vec![
+        format!("  PID{}", if matches!(app.proc_sort, crate::app::ProcessSort::Pid) { sort_hint } else { "" }),
+        "CPU%".to_string(),
+        "   RSS".to_string(),
+        "S".to_string(),
+        "THR".to_string(),
+        "COMMAND".to_string(),
+    ])
+    .style(Style::default().fg(t.daisy).add_modifier(Modifier::BOLD));
+
+    let procs = app.filtered_procs(inner.height.saturating_sub(1) as usize, true);
+    let rows = procs.iter().map(|p| {
         Row::new(vec![
             format!("{:>6}", p.pid),
-            format!("{:>5.1}", p.cpu_percent),
-            format!("{:>7}", fmt_kb(p.rss_kb)),
-            truncate(&p.name, inner.width.saturating_sub(22) as usize),
+            format!("{:>4.1}", p.cpu_percent),
+            format!("{:>6}", fmt_kb(p.rss_kb)),
+            p.state.to_string(),
+            format!("{:>3}", p.threads),
+            truncate(&p.name, inner.width.saturating_sub(30) as usize),
         ])
-        .style(Style::default().fg(if p.cpu_percent >= 50.0 {
-            Color::Yellow
-        } else {
-            CREAM
-        }))
+        .style(Style::default().fg(if p.cpu_percent >= 50.0 { t.warning } else { t.cream }))
     });
 
     frame.render_widget(
@@ -252,8 +246,10 @@ fn panel_top_cpu(frame: &mut Frame, area: Rect, app: &App) {
             rows,
             [
                 Constraint::Length(7),
-                Constraint::Length(6),
-                Constraint::Length(8),
+                Constraint::Length(5),
+                Constraint::Length(7),
+                Constraint::Length(1),
+                Constraint::Length(4),
                 Constraint::Min(6),
             ],
         )
@@ -263,31 +259,29 @@ fn panel_top_cpu(frame: &mut Frame, area: Rect, app: &App) {
 }
 
 fn panel_top_mem(frame: &mut Frame, area: Rect, app: &App) {
-    let block = proc_block("Top by MEM");
+    let t = &app.theme;
+    let block = t.proc_block("Top by MEM");
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
-    let header = Row::new(vec!["  PID", " MEM%", "   RSS", "COMMAND"])
-        .style(Style::default().fg(DAISY).add_modifier(Modifier::BOLD));
+    let header = Row::new(vec![
+        "  PID".to_string(), " MEM%".to_string(), "   RSS".to_string(), "S".to_string(), "CPU%".to_string(), "COMMAND".to_string(),
+    ])
+    .style(Style::default().fg(t.daisy).add_modifier(Modifier::BOLD));
 
-    let visible = inner.height.saturating_sub(1) as usize;
-    let rows = app.snapshot.top_mem.iter().take(visible).map(|p| {
-        let mem_pct = if app.snapshot.mem.total_kb > 0 {
-            100.0 * p.rss_kb as f64 / app.snapshot.mem.total_kb as f64
-        } else {
-            0.0
-        };
+    let mem_total = app.snapshot.mem.total_kb.max(1);
+    let procs = app.filtered_procs(inner.height.saturating_sub(1) as usize, false);
+    let rows = procs.iter().map(|p| {
+        let mem_pct = 100.0 * p.rss_kb as f64 / mem_total as f64;
         Row::new(vec![
             format!("{:>6}", p.pid),
             format!("{:>5.1}", mem_pct),
             format!("{:>7}", fmt_kb(p.rss_kb)),
-            truncate(&p.name, inner.width.saturating_sub(22) as usize),
+            p.state.to_string(),
+            format!("{:>4.1}", p.cpu_percent),
+            truncate(&p.name, inner.width.saturating_sub(29) as usize),
         ])
-        .style(Style::default().fg(if mem_pct >= 10.0 {
-            Color::Rgb(255, 180, 100)
-        } else {
-            CREAM
-        }))
+        .style(Style::default().fg(if mem_pct >= 10.0 { Color::Rgb(255, 180, 100) } else { t.cream }))
     });
 
     frame.render_widget(
@@ -297,6 +291,8 @@ fn panel_top_mem(frame: &mut Frame, area: Rect, app: &App) {
                 Constraint::Length(7),
                 Constraint::Length(6),
                 Constraint::Length(8),
+                Constraint::Length(1),
+                Constraint::Length(5),
                 Constraint::Min(6),
             ],
         )

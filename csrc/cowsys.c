@@ -167,6 +167,10 @@ static void copy_proc_views(CowProc *dest, int *dest_count,
 
     for (i = 0; i < n; i++) {
         dest[i].pid = src[i].pid;
+        dest[i].ppid = src[i].ppid;
+        dest[i].state = src[i].state;
+        dest[i].threads = src[i].threads;
+        dest[i].uid = src[i].uid;
         snprintf(dest[i].name, sizeof(dest[i].name), "%s", src[i].name);
         dest[i].cpu_percent = src[i].cpu_percent;
         dest[i].rss_kb = src[i].rss_kb;
@@ -369,6 +373,75 @@ int cow_monitor_sample(CowMonitor *monitor,
         }
         if (write_sectors >= monitor->prev_write_sectors) {
             out->disk_write_bps = (double)(write_sectors - monitor->prev_write_sectors) * SECTOR_BYTES / dt;
+        }
+    }
+
+    /* CPU frequencies from /sys */
+    {
+        int core;
+        out->cpu_freq_count = 0;
+        for (core = 0; core < core_count && core < COW_MAX_CORES; core++) {
+            char fpath[COWTOP_PATH_MAX];
+            FILE *ff;
+            double freq = 0.0;
+            snprintf(fpath, sizeof(fpath),
+                     "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq", core);
+            ff = fopen(fpath, "r");
+            if (ff != NULL) {
+                unsigned long long khz = 0;
+                if (fscanf(ff, "%llu", &khz) == 1) {
+                    freq = (double)khz / 1000.0;
+                }
+                fclose(ff);
+            }
+            out->cpu_freqs[core].core_id = core;
+            out->cpu_freqs[core].freq_mhz = freq;
+            out->cpu_freq_count++;
+        }
+    }
+
+    /* Thermal zones from /sys */
+    {
+        int tz;
+        out->thermal_count = 0;
+        for (tz = 0; tz < COW_MAX_THERMAL; tz++) {
+            char tpath[COWTOP_PATH_MAX];
+            char ttype[64];
+            FILE *tf;
+            int temp_mc;
+
+            snprintf(tpath, sizeof(tpath),
+                     "/sys/class/thermal/thermal_zone%d/temp", tz);
+            tf = fopen(tpath, "r");
+            if (tf == NULL) break;
+
+            temp_mc = 0;
+            if (fscanf(tf, "%d", &temp_mc) != 1) {
+                fclose(tf);
+                continue;
+            }
+            fclose(tf);
+
+            snprintf(tpath, sizeof(tpath),
+                     "/sys/class/thermal/thermal_zone%d/type", tz);
+            tf = fopen(tpath, "r");
+            if (tf != NULL) {
+                if (fgets(ttype, sizeof(ttype), tf) != NULL) {
+                    size_t tl = strlen(ttype);
+                    while (tl > 0 && (ttype[tl-1] == '\n' || ttype[tl-1] == ' '))
+                        ttype[--tl] = '\0';
+                    snprintf(out->thermals[out->thermal_count].name, COW_NAME, "%s", ttype);
+                } else {
+                    snprintf(out->thermals[out->thermal_count].name, COW_NAME,
+                             "tz%d", tz);
+                }
+                fclose(tf);
+            } else {
+                snprintf(out->thermals[out->thermal_count].name, COW_NAME, "tz%d", tz);
+            }
+
+            out->thermals[out->thermal_count].temp_c = (double)temp_mc / 1000.0;
+            out->thermal_count++;
         }
     }
 

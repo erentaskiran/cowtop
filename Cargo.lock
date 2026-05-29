@@ -147,10 +147,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "cowtui"
+name = "cowtop"
 version = "0.1.0"
 dependencies = [
  "cc",
+ "libc",
  "ratatui",
 ]
 

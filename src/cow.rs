@@ -1,5 +1,5 @@
-//! The mascot. The cow's face and mood track system load so the banner reacts
-//! to what the machine is doing.
+//! The mascot. The cow's face and mood track system load.
+//! Includes idle animation frames for variety.
 
 use ratatui::style::Color;
 
@@ -13,7 +13,6 @@ pub enum Mood {
 }
 
 impl Mood {
-    /// Derived from the worst of CPU%, memory% and normalized load.
     pub fn from_load(cpu_percent: f64, mem_percent: f64, load1: f64, cores: usize) -> Mood {
         let load_pct = if cores > 0 {
             100.0 * load1 / cores as f64
@@ -64,16 +63,34 @@ impl Mood {
         }
     }
 
-    /// Five lines of cow art; the eyes and sweat change with mood.
-    pub fn art(self) -> [&'static str; 5] {
+    /// Five lines of cow art. The eyes and sweat change with mood.
+    /// `frame` picks an idle animation variant.
+    pub fn art(self, frame: u64) -> [&'static str; 5] {
+        let tick = (frame / 30) % 3;
         match self {
-            Mood::Grazing => [
-                r"        ^__^",
-                r"        (--)\_______",
-                r"        (__)\       )\/\",
-                r"            ||----w |",
-                r"            ||     ||   ,,,",
-            ],
+            Mood::Grazing => match tick {
+                0 => [
+                    r"        ^__^",
+                    r"        (--)\_______",
+                    r"        (__)\       )\/\",
+                    r"            ||----w |",
+                    r"            ||     ||   ,,,",
+                ],
+                1 => [
+                    r"        ^__^",
+                    r"        (--)\_______",
+                    r"        (__)\       )\/\",
+                    r"            ||----w |   ,",
+                    r"            ||     ||  ,,,",
+                ],
+                _ => [
+                    r"        ^__^",
+                    r"        (oo)\_______",
+                    r"        (__)\       )\/\",
+                    r"            ||----w |",
+                    r"            ||     ||   ,,,",
+                ],
+            },
             Mood::Content => [
                 r"        ^__^",
                 r"        (oo)\_______",
@@ -81,27 +98,55 @@ impl Mood {
                 r"            ||----w |",
                 r"            ||     ||",
             ],
-            Mood::Busy => [
-                r"        ^__^",
-                r"        (oo)\_______",
-                r"        (__)\       )\/\  ~",
-                r"            ||----w |   ~",
-                r"            ||     ||",
-            ],
-            Mood::Stressed => [
-                r"     '   ^__^",
-                r"      `  (Oo)\_______",
-                r"        (__)\       )\/\  ~~",
-                r"            ||----w |  ~~",
-                r"            ||     ||",
-            ],
-            Mood::Panic => [
-                r"   ' ' ' ^__^",
-                r"    ` `  (@@)\_______",
-                r"        (__)\       )\/\ !!",
-                r"            ||----w |  !!",
-                r"            ||     ||",
-            ],
+            Mood::Busy => match tick {
+                0 => [
+                    r"        ^__^",
+                    r"        (oo)\_______",
+                    r"        (__)\       )\/\  ~",
+                    r"            ||----w |   ~",
+                    r"            ||     ||",
+                ],
+                _ => [
+                    r"        ^__^",
+                    r"        (oO)\_______",
+                    r"        (__)\       )\/\  ~",
+                    r"            ||----w |   ~~",
+                    r"            ||     ||",
+                ],
+            },
+            Mood::Stressed => match tick {
+                0 => [
+                    r"     '   ^__^",
+                    r"      `  (Oo)\_______",
+                    r"        (__)\       )\/\  ~~",
+                    r"            ||----w |  ~~",
+                    r"            ||     ||",
+                ],
+                _ => [
+                    r"    ' '  ^__^",
+                    r"     ` ` (oO)\_______",
+                    r"        (__)\       )\/\ ~~~",
+                    r"            ||----w | ~~~",
+                    r"            ||     ||",
+                ],
+            },
+            Mood::Panic => match tick {
+                0 => [
+                    r"   ' ' ' ^__^",
+                    r"    ` `  (@@)\_______",
+                    r"        (__)\       )\/\ !!",
+                    r"            ||----w |  !!",
+                    r"            ||     ||",
+                ],
+                _ => [
+                    r"  ' ' '  ^__^",
+                    r"   ` ` ` (Xx)\_______",
+                    r"        (__)\       )\/\ !!!",
+                    r"            ||----w | !!!",
+                    r"            ||     ||",
+                ],
+            },
         }
     }
+
 }

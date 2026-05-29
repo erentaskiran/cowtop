@@ -9,6 +9,7 @@ pub const COW_MAX_IFACES: usize = 32;
 pub const COW_MAX_MOUNTS: usize = 64;
 pub const COW_MAX_CONNS: usize = 256;
 pub const COW_MAX_PROCS: usize = 64;
+pub const COW_MAX_THERMAL: usize = 16;
 
 pub const COW_NAME: usize = 64;
 pub const COW_PATH: usize = 128;
@@ -93,9 +94,27 @@ pub struct CowMount {
 #[derive(Clone, Copy)]
 pub struct CowProc {
     pub pid: c_int,
+    pub ppid: c_int,
     pub name: [c_char; COW_NAME],
+    pub state: c_char,
+    pub threads: c_int,
+    pub uid: c_int,
     pub cpu_percent: f64,
     pub rss_kb: u64,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct CowCpuFreq {
+    pub core_id: c_int,
+    pub freq_mhz: f64,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct CowThermal {
+    pub name: [c_char; COW_NAME],
+    pub temp_c: f64,
 }
 
 #[repr(C)]
@@ -122,6 +141,12 @@ pub struct CowSample {
     pub kernel: [c_char; COW_KERNEL_LEN],
     pub ctx_switches: u64,
     pub interrupts: u64,
+
+    pub cpu_freqs: [CowCpuFreq; COW_MAX_CORES],
+    pub cpu_freq_count: c_int,
+
+    pub thermals: [CowThermal; COW_MAX_THERMAL],
+    pub thermal_count: c_int,
 }
 
 #[repr(C)]

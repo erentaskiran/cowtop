@@ -26,7 +26,11 @@ typedef struct {
 
 typedef struct {
     int pid;
+    int ppid;
     char name[PROC_READER_NAME_LEN];
+    char state;
+    int threads;
+    int uid;
     unsigned long long cpu_ticks;
     unsigned long rss_kb;
 } ProcProcessSample;
@@ -42,7 +46,11 @@ typedef struct {
 
 typedef struct {
     int pid;
+    int ppid;
     char name[PROC_READER_NAME_LEN];
+    char state;
+    int threads;
+    int uid;
     double cpu_percent;
     unsigned long rss_kb;
 } ProcProcessView;

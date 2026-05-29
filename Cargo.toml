@@ -1,16 +1,17 @@
 [package]
-name = "cowtui"
+name = "cowtop"
 version = "0.1.0"
 edition = "2021"
 description = "A cow-themed terminal system monitor with a C /proc backend and a ratatui frontend"
 build = "build.rs"
 
 [[bin]]
-name = "cowtui"
+name = "cowtop"
 path = "src/main.rs"
 
 [dependencies]
 ratatui = "0.30"
+libc = "0.2"
 
 [build-dependencies]
 cc = "1"

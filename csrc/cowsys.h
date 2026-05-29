@@ -20,6 +20,7 @@
 #define COW_PROTO 8
 #define COW_HOSTNAME_LEN 64
 #define COW_KERNEL_LEN 256
+#define COW_MAX_THERMAL 16
 
 #define COW_ERR_LEN 256
 
@@ -84,10 +85,24 @@ typedef struct {
 
 typedef struct {
     int pid;
+    int ppid;
     char name[COW_NAME];
+    char state;
+    int threads;
+    int uid;
     double cpu_percent;
     unsigned long long rss_kb;
 } CowProc;
+
+typedef struct {
+    int core_id;
+    double freq_mhz;
+} CowCpuFreq;
+
+typedef struct {
+    char name[COW_NAME];
+    double temp_c;
+} CowThermal;
 
 typedef struct {
     long long timestamp;
@@ -117,6 +132,12 @@ typedef struct {
     char kernel[COW_KERNEL_LEN];
     unsigned long long ctx_switches;
     unsigned long long interrupts;
+
+    CowCpuFreq cpu_freqs[COW_MAX_CORES];
+    int cpu_freq_count;
+
+    CowThermal thermals[COW_MAX_THERMAL];
+    int thermal_count;
 } CowSample;
 
 typedef struct CowMonitor CowMonitor;
